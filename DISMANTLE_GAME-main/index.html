@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BABA YAGA — Weapon Assembly Challenge | Tactical Armory</title>
+  <meta name="description" content="Cinematic dark tactical firearm assembly simulator powered by real-time webcam hand tracking and Three.js. Assemble the MP40, AWM Sniper, and combat sidearms before your contract expires." />
+  <!-- Google Fonts: Rajdhani for tactical military HUD, Share Tech Mono for telemetry, Cormorant Garamond for Continental accents -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!-- 3D WebGL Canvas Layer -->
+  <div id="canvas-container"></div>
+
+  <!-- Glowing Hand Tracking Reticle / Cursor -->
+  <div id="hand-cursor" class="hand-cursor">
+    <div class="cursor-ring outer-ring"></div>
+    <div class="cursor-ring inner-ring"></div>
+    <div class="cursor-crosshair"></div>
+    <div class="cursor-status-label">ALIGNING</div>
+  </div>
+
+  <!-- HUD Overlay Container -->
+  <div id="hud-overlay" class="hud-overlay">
+    <!-- Top Header Bar -->
+    <header class="hud-header">
+      <div class="hud-title-card">
+        <div class="title-top-row">
+          <span class="sub-label">TACTICAL ARMORY // WEAPONS DIVISION</span>
+          <span id="hud-level-badge" class="level-indicator-pill">CONTRACT I: MARKER (130s)</span>
+          <span id="hud-weapon-badge" class="weapon-indicator-pill">⚡ MP40 SMG</span>
+        </div>
+        <h1 class="main-title">BABA YAGA — WEAPON ASSEMBLY</h1>
+      </div>
+
+      <!-- Top Right Actions & Status -->
+      <div class="hud-actions-card">
+        <div id="cam-status-badge" class="status-pill status-idle">SURVEILLANCE: STANDBY</div>
+        <div class="hud-buttons">
+          <button id="btn-armory-shop" class="hud-btn armory-btn" title="Open Tactical Armory">🏛️ ARMORY</button>
+          <button id="btn-pause-game" class="hud-btn pause-btn" title="Pause or Resume Contract">⏸️ STAND DOWN</button>
+          <button id="btn-reset-game" class="hud-btn reset-btn" title="New Contract">🔄 NEW CONTRACT</button>
+          <button id="btn-home-game" class="hud-btn home-btn" title="Return to The Continental">🏠 THE CONTINENTAL</button>
+          <button id="btn-snap-assist" class="hud-btn assist-btn" title="Snap current unplaced part">⚡ FIELD ASSIST</button>
+          <button id="btn-sound-toggle" class="hud-btn" title="Toggle Sound">🔊 AUDIO: ON</button>
+          <button id="btn-fullscreen-toggle" class="hud-btn" title="Toggle Fullscreen">⛶ FULLSCREEN</button>
+          <button id="btn-how-to" class="hud-btn" title="Instructions">ℹ️ FIELD MANUAL</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Center Big Cyber Timer (Hangs cleanly BELOW the header line - No Overlap) -->
+    <div class="hud-timer-card">
+      <div class="timer-label">CONTRACT EXPIRES IN</div>
+      <div id="hud-timer" class="timer-value">01:30</div>
+    </div>
+
+    <!-- Mid Section: Left Component Inspector & Right Stats Panel -->
+    <main class="hud-body">
+      <!-- Left Panel: Component Telemetry Deck & Inventory -->
+      <aside class="hud-panel left-panel">
+        <div class="panel-header">
+          <span class="panel-icon">⚙️</span>
+          <h2>WEAPON COMPONENTS (8)</h2>
+        </div>
+        <div class="panel-content">
+          <!-- Active Weapon Telemetry Card -->
+          <div class="active-weapon-specs-card">
+            <div class="specs-thumb-wrap">
+              <img id="panel-weapon-img" class="specs-weapon-thumb" src="./assets/weapons/mp40.jpg" alt="Weapon Preview" />
+            </div>
+            <div class="specs-header">
+              <span id="panel-weapon-badge" class="weapon-badge-pill">⚡ MP40 SMG</span>
+              <span id="panel-weapon-caliber" class="weapon-cal-text">9×19mm Parabellum</span>
+            </div>
+            <div id="panel-weapon-desc" class="specs-desc">Legendary WWII German open-bolt submachine gun with stamped receiver and under-folding stock.</div>
+          </div>
+
+          <div class="inspector-field">
+            <span class="field-title">TARGET COMPONENT</span>
+            <span id="inspector-name" class="field-value highlight">AWAITING SELECTION</span>
+          </div>
+
+          <!-- Parts Inventory List -->
+          <div class="parts-inventory-box">
+            <div id="parts-list" class="parts-list"></div>
+          </div>
+
+          <div class="gesture-tip-box">
+            <div class="tip-row"><span class="badge-key">ROTATE</span> Right-drag or drag background</div>
+            <div class="tip-row"><span class="badge-key">PINCH</span> Grab piece • <span class="badge-key">RELEASE</span> Snap</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Panel: Mission Score & Assembly Progress -->
+      <aside class="hud-panel right-panel">
+        <div class="panel-header">
+          <span class="panel-icon">📊</span>
+          <h2>CONTRACT METRICS</h2>
+        </div>
+        <div class="panel-content">
+          <div class="stat-grid">
+            <div class="stat-box">
+              <span class="stat-title">GOLD COINS</span>
+              <span id="hud-score" class="stat-number">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-title">ASSEMBLY</span>
+              <span id="hud-count" class="stat-number">0 / 8</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-title">MISPLACED</span>
+              <span id="hud-mistakes" class="stat-number">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-title">ACCURACY</span>
+              <span id="hud-accuracy" class="stat-number">100%</span>
+            </div>
+          </div>
+
+          <!-- Assembly Progress Bar -->
+          <div class="progress-container">
+            <div class="progress-info">
+              <span>CONTRACT FULFILLMENT STATUS</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div id="hud-progress-fill" class="progress-bar-fill"></div>
+            </div>
+          </div>
+
+          <!-- Historical Stats -->
+          <div class="record-box">
+            <div>TOP CONTRACT: <span id="best-score-display">0</span></div>
+            <div>LAST MISSION: <span id="last-score-display">0</span></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Center: Surveillance Angle Dock (Unobstructed Viewport Dock) -->
+    <div id="hud-camera-toolbar" class="hud-camera-toolbar">
+      <span class="toolbar-label">SURVEILLANCE ANGLE:</span>
+      <button class="cam-btn active" data-view="iso">📐 3/4 PROFILE</button>
+      <button class="cam-btn" data-view="side">📐 SIDE VIEW</button>
+      <button class="cam-btn" data-view="top">📐 TOP VIEW</button>
+      <button class="cam-btn" data-view="front">📐 FRONT VIEW</button>
+      <div class="rotate-hint-pill">✊ FIST / ✌️ 2-FINGERS: ROTATE 360°</div>
+    </div>
+
+    <!-- Bottom Center Floating Toast Alert -->
+    <div id="hud-toast" class="hud-toast">INITIALIZING SIMULATION</div>
+
+    <!-- Bottom Right: Live Webcam Tracking PIP Deck -->
+    <section class="pip-container">
+      <div id="pip-header" class="pip-header">
+        <span>🎥 SURVEILLANCE FEED</span>
+        <button id="btn-camera-toggle" class="pip-toggle-btn" title="Toggle Camera">POWER</button>
+      </div>
+      <div id="pip-body" class="pip-body">
+        <video id="webcam-video" autoplay playsinline muted></video>
+        <canvas id="pip-canvas"></canvas>
+      </div>
+      <div class="pip-footer">
+        <span>Pinch Gesture • Mouse Drag Supported</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL 1: START MISSION SCREEN -->
+  <div id="start-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-badge">TACTICAL ARMORY // CLASSIFIED BRIEFING</div>
+      <h2 class="modal-title">BABA YAGA</h2>
+      <p class="modal-desc">
+        The weapon platform has been disassembled into <strong>8 authentic components</strong> laid out across the armorer's workbench.
+        Use your <strong>webcam hand gestures</strong> (or mouse click & drag) to pinch, align, and assemble each part onto the magnetic ghost frame before the contract timer expires.
+      </p>
+
+      <!-- Active Weapon Platform Banner & Shop Button -->
+      <div class="active-weapon-deck">
+        <div class="weapon-deck-thumb-wrap">
+          <img id="start-weapon-img" class="weapon-deck-thumb" src="./assets/weapons/mp40.jpg" alt="Active Platform" />
+        </div>
+        <div class="weapon-deck-info">
+          <span class="weapon-deck-label">ACTIVE PLATFORM:</span>
+          <span id="start-weapon-title" class="weapon-deck-title">⚡ MP40 MASCHINENPISTOLE (9×19mm)</span>
+          <span id="start-weapon-meta" class="weapon-deck-meta">9×19mm WWII • Stamped Blued Steel & Durfolit Bakelite • 8 Parts</span>
+        </div>
+        <button id="btn-open-shop-start" class="hud-btn armory-btn" title="Open Tactical Armory">🏛️ TACTICAL ARMORY</button>
+      </div>
+
+      <!-- Quick Platform Switcher Tabs inside Start Modal -->
+      <div class="start-weapon-quick-picker">
+        <span class="picker-label">QUICK SWITCH PLATFORM:</span>
+        <div class="picker-buttons">
+          <button class="btn-equip-weapon active" data-weapon="mp40">⚡ MP40 SMG</button>
+          <button class="btn-equip-weapon" data-weapon="awm">🎯 AWM SNIPER</button>
+          <button class="btn-equip-weapon" data-weapon="spectre9">🔫 SPECTRE-9</button>
+          <button class="btn-equip-weapon" data-weapon="nighthawk50">💥 NIGHTHAWK .50</button>
+          <button class="btn-equip-weapon" data-weapon="valkyrieCQB">🛡️ VALKYRIE CQB</button>
+        </div>
+      </div>
+
+      <!-- Difficulty Selector -->
+      <div class="selection-section">
+        <h3>SELECT CONTRACT TIER</h3>
+        <div class="diff-selector">
+          <button class="diff-btn" data-diff="easy">
+            <span class="diff-name">MARKER</span>
+            <span class="diff-meta">130s • Training Contract</span>
+          </button>
+          <button class="diff-btn active" data-diff="medium">
+            <span class="diff-name">CONTRACT</span>
+            <span class="diff-meta">90s • Standard Assignment</span>
+          </button>
+          <button class="diff-btn" data-diff="hard">
+            <span class="diff-name">BLOOD OATH</span>
+            <span class="diff-meta">60s • High Table Priority</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Instructions Visual -->
+      <div class="how-to-preview">
+        <div class="how-card">
+          <div class="how-icon">✊</div>
+          <div class="how-title">FIST / 2-FINGERS</div>
+          <div class="how-text">Make a fist & move hand to freely rotate 3D gun in 360°</div>
+        </div>
+        <div class="how-card">
+          <div class="how-icon">🤏</div>
+          <div class="how-title">PINCH FINGERS</div>
+          <div class="how-text">Pinch Thumb & Index to Grab and Drag in 3D</div>
+        </div>
+        <div class="how-card">
+          <div class="how-icon">🎯</div>
+          <div class="how-title">ALIGN & SNAP</div>
+          <div class="how-text">Align with cyan ghost frame & release to snap</div>
+        </div>
+        <div class="how-card">
+          <div class="how-icon">🖐️</div>
+          <div class="how-title">OPEN PALM</div>
+          <div class="how-text">Move hand to aim reticle (or mouse click & drag)</div>
+        </div>
+      </div>
+
+      <!-- Camera Status Note -->
+      <div id="modal-cam-status" class="modal-status-text">
+        Ready. Press ACCEPT CONTRACT to enable camera and begin.
+      </div>
+
+      <!-- Action Button -->
+      <button id="btn-start-game" class="btn-primary-large">
+        <span class="btn-glow"></span>
+        ACCEPT CONTRACT
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: HOW TO PLAY INSTRUCTIONS -->
+  <div id="instructions-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2 class="modal-title">OPERATIONAL MANUAL</h2>
+      <div class="instructions-content">
+        <div class="instruction-block">
+          <h3>1. Real-Time Hand Tracking</h3>
+          <p>Point your webcam towards your hand. Keep your hand visible and well-lit. The AI tracks 21 hand joints at sub-millisecond precision.</p>
+        </div>
+        <div class="instruction-block">
+          <h3>2. Gesture Controls</h3>
+          <ul>
+            <li><strong>Rotate 3D Scene (✊ Fist or ✌️ 2-Fingers):</strong> Close your fingers into a fist or hold up two fingers, and move your hand left/right/up/down to freely rotate the 3D gun and view it from any angle!</li>
+            <li><strong>Aim / Hover (🖐️ Open Palm):</strong> Move your open palm across the camera to aim the glowing reticle over parts.</li>
+            <li><strong>Grab & Move (🤏 Pinch):</strong> Bring your thumb and index fingertip together over a component to pick it up and translate it in 3D.</li>
+            <li><strong>Snap (Release):</strong> Move the part close to its glowing cyan ghost target. A green magnetic tether line will guide you. Open your pinch to snap it into place!</li>
+          </ul>
+        </div>
+        <div class="instruction-block">
+          <h3>3. Scoring System</h3>
+          <p>Gain points for each assembled component (+200 to +300 depending on difficulty). Finish quickly to earn a major speed bonus!</p>
+        </div>
+        <div class="instruction-block">
+          <h3>4. Backup Controls</h3>
+          <p>If you don't have a webcam or choose not to use one, simply use your mouse: click and drag any floating component into its ghost outline.</p>
+        </div>
+      </div>
+      <button id="btn-close-instructions" class="btn-secondary">CLOSE DOSSIER</button>
+    </div>
+  </div>
+
+  <!-- MODAL 3: VICTORY SCREEN -->
+  <div id="victory-modal" class="modal-backdrop hidden">
+    <div class="modal-card victory-card">
+      <div class="modal-badge victory-badge">CONTRACT FULFILLED</div>
+      <h2 class="modal-title">WEAPON OPERATIONAL!</h2>
+      <div id="victory-level-title" class="modal-level-banner">CONTRACT I: MARKER — FULFILLED</div>
+      <p class="modal-desc">
+        All 8 components assembled. Weapon verified operational. The High Table is pleased.
+      </p>
+
+      <div class="victory-stats-grid">
+        <div class="v-stat">
+          <span class="v-label">GOLD COINS EARNED</span>
+          <span id="victory-score" class="v-val highlight">0</span>
+        </div>
+        <div class="v-stat">
+          <span class="v-label">TIME TO COMPLETE</span>
+          <span id="victory-time" class="v-val">0.0s</span>
+        </div>
+        <div class="v-stat">
+          <span class="v-label">ASSASSIN RANK</span>
+          <span id="victory-rank" class="v-val rank-val">S-RANK</span>
+        </div>
+        <div class="v-stat">
+          <span class="v-label">ACCURACY</span>
+          <span id="victory-accuracy" class="v-val">100%</span>
+        </div>
+      </div>
+
+      <!-- Point Breakdown Card -->
+      <div class="breakdown-card">
+        <div class="breakdown-title">POINT BREAKDOWN & MARKS</div>
+        <div class="breakdown-row">
+          <span>Assembly Base Score</span>
+          <span id="breakdown-base-pts" class="breakdown-pts">+1,600</span>
+        </div>
+        <div class="breakdown-row">
+          <span>Efficiency Bonus</span>
+          <span id="breakdown-time-pts" class="breakdown-pts">+550</span>
+        </div>
+        <div class="breakdown-row">
+          <span>Precision Bonus</span>
+          <span id="breakdown-accuracy-pts" class="breakdown-pts">+450</span>
+        </div>
+      </div>
+
+      <!-- Modal Action Buttons -->
+      <div class="modal-action-row">
+        <button id="btn-next-level" class="btn-primary-large">
+          <span class="btn-glow"></span>
+          <span id="btn-next-level-text">▶️ NEXT CONTRACT (MEDIUM)</span>
+        </button>
+        <button id="btn-play-again" class="btn-secondary">
+          🔄 REPLAY LEVEL
+        </button>
+        <button id="btn-victory-home" class="btn-secondary">
+          🏠 MAIN MENU
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: GAME OVER SCREEN -->
+  <div id="gameover-modal" class="modal-backdrop hidden">
+    <div class="modal-card gameover-card">
+      <div class="modal-badge warning-badge">EXCOMMUNICADO</div>
+      <h2 class="modal-title">CONTRACT FAILED!</h2>
+      <div id="gameover-level-title" class="modal-level-banner warning">CONTRACT I — TERMINATED</div>
+      <p class="modal-desc">
+        Time expired. All Continental services have been revoked. You are now Excommunicado.
+      </p>
+
+      <div class="victory-stats-grid">
+        <div class="v-stat">
+          <span class="v-label">COINS EARNED</span>
+          <span id="gameover-score" class="v-val highlight">0</span>
+        </div>
+        <div class="v-stat">
+          <span class="v-label">PARTS ASSEMBLED</span>
+          <span id="gameover-assembled" class="v-val">0 / 8</span>
+        </div>
+        <div class="v-stat">
+          <span class="v-label">ACCURACY</span>
+          <span id="gameover-accuracy" class="v-val">0%</span>
+        </div>
+        <div class="v-stat">
+          <span class="v-label">FIELD RATING</span>
+          <span id="gameover-eval" class="v-val rank-val" style="color: var(--amber-bright);">CADET</span>
+        </div>
+      </div>
+
+      <!-- Modal Action Buttons -->
+      <div class="modal-action-row">
+        <button id="btn-retry-game" class="btn-primary-large">
+          <span class="btn-glow"></span>
+          🔄 RETRY THIS LEVEL
+        </button>
+        <button id="btn-auto-complete-view" class="btn-secondary">
+          ⚡ AUTO-ASSEMBLE & VIEW GUN
+        </button>
+        <button id="btn-gameover-home" class="btn-secondary">
+          🏠 MAIN MENU
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: PAUSE SCREEN -->
+  <div id="pause-modal" class="modal-backdrop hidden">
+    <div class="modal-card pause-card">
+      <div class="modal-badge pause-badge">MISSION SUSPENDED</div>
+      <h2 class="modal-title">STAND DOWN</h2>
+      <div id="pause-level-title" class="modal-level-banner">CONTRACT I: MARKER</div>
+      <p class="modal-desc">
+        Contract timer paused. Resume when you are ready, operative.
+      </p>
+
+      <div class="victory-stats-grid">
+        <div class="v-stat">
+          <span class="v-label">CURRENT COINS</span>
+          <span id="pause-score" class="v-val highlight">0</span>
+        </div>
+        <div class="v-stat">
+          <span class="v-label">COMPONENTS LOCKED</span>
+          <span id="pause-assembled" class="v-val">0 / 8</span>
+        </div>
+      </div>
+
+      <!-- Modal Action Buttons -->
+      <div class="modal-action-row">
+        <button id="btn-resume-mission" class="btn-primary-large">
+          <span class="btn-glow"></span>
+          ▶️ RESUME CONTRACT
+        </button>
+        <button id="btn-pause-reset" class="btn-secondary">
+          🔄 NEW CONTRACT
+        </button>
+        <button id="btn-pause-home" class="btn-secondary">
+          🏠 THE CONTINENTAL
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: TACTICAL WEAPON ARMORY & SHOP -->
+  <div id="shop-modal" class="modal-backdrop hidden">
+    <div class="modal-card shop-card">
+      <div class="modal-badge armory-badge">🏛️ TACTICAL ARMORY & WEAPON SHOWCASE</div>
+      <h2 class="modal-title">WEAPON SHOWCASE & CONFIG</h2>
+      <p class="modal-desc">
+        Select an authentic military firearm platform for field-strip inspection & reassembly. Each platform features realistic engineering, accurate materials, and customizable challenge timers.
+      </p>
+
+      <!-- Weapons Showcase Grid -->
+      <div class="shop-weapons-grid">
+        <!-- Weapon 1: MP40 Submachine Gun -->
+        <div class="shop-weapon-card active" data-weapon="mp40">
+          <div class="sw-badge standard">WWII SUBMACHINE GUN</div>
+          <div class="sw-image-wrap">
+            <img class="sw-image-preview" src="./assets/weapons/mp40.jpg" alt="MP40 Maschinenpistole" />
+          </div>
+          <h3 class="sw-name">MP40 MASCHINENPISTOLE</h3>
+          <div class="sw-cal">9×19mm Parabellum (WWII)</div>
+          <div class="sw-finish">Stamped Blued Steel & Durfolit Bakelite</div>
+          <p class="sw-desc">Legendary WWII German open-bolt submachine gun featuring stamped fluted receiver, under-folding steel stock, resting bar, and 32-round stick magazine.</p>
+          <div class="sw-timers">
+            <span id="shop-timer-mp40-easy">⏱️ Easy: 130s</span>
+            <span id="shop-timer-mp40-medium">⏱️ Med: 90s</span>
+            <span id="shop-timer-mp40-hard">⏱️ Hard: 60s</span>
+          </div>
+          <button class="btn-equip-weapon" data-weapon="mp40">EQUIPPED</button>
+        </div>
+
+        <!-- Weapon 2: AWM Sniper Rifle -->
+        <div class="shop-weapon-card" data-weapon="awm">
+          <div class="sw-badge specops">SNIPER ELITE</div>
+          <div class="sw-image-wrap">
+            <img class="sw-image-preview" src="./assets/weapons/awm.jpg" alt="AWM Sniper" />
+          </div>
+          <h3 class="sw-name">AWM / L115A3 TACTICAL SNIPER</h3>
+          <div class="sw-cal">.338 Lapua Magnum</div>
+          <div class="sw-finish">OD Green Ergonomic Chassis & Match Stainless</div>
+          <p class="sw-desc">Elite British military turn-bolt sniper rifle with 27" fluted match barrel, Schmidt & Bender PM II 50mm high-power optic, dual-ported brake, and folding bipod.</p>
+          <div class="sw-timers">
+            <span id="shop-timer-awm-easy">⏱️ Easy: 140s</span>
+            <span id="shop-timer-awm-medium">⏱️ Med: 100s</span>
+            <span id="shop-timer-awm-hard">⏱️ Hard: 65s</span>
+          </div>
+          <button class="btn-equip-weapon" data-weapon="awm">EQUIP WEAPON</button>
+        </div>
+
+        <!-- Weapon 3: Spectre-9 -->
+        <div class="shop-weapon-card" data-weapon="spectre9">
+          <div class="sw-badge standard">COMBAT SIDEARM</div>
+          <div class="sw-image-wrap">
+            <img class="sw-image-preview" src="./assets/weapons/spectre9.jpg" alt="Spectre-9" />
+          </div>
+          <h3 class="sw-name">SPECTRE-9 TACTICAL PISTOL</h3>
+          <div class="sw-cal">9×19mm NATO Parabellum</div>
+          <div class="sw-finish">Parkerized Black & Blued Steel</div>
+          <p class="sw-desc">Precision-machined combat sidearm with CNC slide serrations, fluted match barrel, stippled polymer grip, and RMR red-dot optic.</p>
+          <div class="sw-timers">
+            <span id="shop-timer-spectre9-easy">⏱️ Easy: 120s</span>
+            <span id="shop-timer-spectre9-medium">⏱️ Med: 90s</span>
+            <span id="shop-timer-spectre9-hard">⏱️ Hard: 60s</span>
+          </div>
+          <button class="btn-equip-weapon" data-weapon="spectre9">EQUIP WEAPON</button>
+        </div>
+
+        <!-- Weapon 4: Nighthawk .50 AE -->
+        <div class="shop-weapon-card" data-weapon="nighthawk50">
+          <div class="sw-badge magnum">MAGNUM CLASS</div>
+          <div class="sw-image-wrap">
+            <img class="sw-image-preview" src="./assets/weapons/nighthawk50.jpg" alt="Nighthawk .50" />
+          </div>
+          <h3 class="sw-name">NIGHTHAWK .50 AE</h3>
+          <div class="sw-cal">.50 Action Express Magnum</div>
+          <div class="sw-finish">Brushed Stainless & Nitride Black</div>
+          <p class="sw-desc">Massive heavy-caliber magnum hand cannon featuring full-length top rib, gas-operated slide, muzzle brake, and combat hammer.</p>
+          <div class="sw-timers">
+            <span id="shop-timer-nighthawk50-easy">⏱️ Easy: 135s</span>
+            <span id="shop-timer-nighthawk50-medium">⏱️ Med: 100s</span>
+            <span id="shop-timer-nighthawk50-hard">⏱️ Hard: 70s</span>
+          </div>
+          <button class="btn-equip-weapon" data-weapon="nighthawk50">EQUIP WEAPON</button>
+        </div>
+
+        <!-- Weapon 5: Valkyrie CQB-R -->
+        <div class="shop-weapon-card" data-weapon="valkyrieCQB">
+          <div class="sw-badge specops">SPECIAL FORCES</div>
+          <div class="sw-image-wrap">
+            <img class="sw-image-preview" src="./assets/weapons/valkyrieCQB.jpg" alt="Valkyrie CQB" />
+          </div>
+          <h3 class="sw-name">VALKYRIE CQB-R</h3>
+          <div class="sw-cal">5.56×45mm NATO SBR</div>
+          <div class="sw-finish">Mil-Spec Hardcoat Anodized</div>
+          <p class="sw-desc">Compact special-operations carbine with flattop upper receiver, M-LOK handguard, cold-hammered barrel, PMAG, and EOTech sight.</p>
+          <div class="sw-timers">
+            <span id="shop-timer-valkyrieCQB-easy">⏱️ Easy: 150s</span>
+            <span id="shop-timer-valkyrieCQB-medium">⏱️ Med: 110s</span>
+            <span id="shop-timer-valkyrieCQB-hard">⏱️ Hard: 75s</span>
+          </div>
+          <button class="btn-equip-weapon" data-weapon="valkyrieCQB">EQUIP WEAPON</button>
+        </div>
+      </div>
+
+      <!-- Custom Time Limit Settings for Selected Platform -->
+      <div class="custom-timer-deck">
+        <div class="timer-deck-header">
+          <h4>⏱️ SET CONTRACT EXPIRY TIMES</h4>
+          <span class="timer-deck-sub">Configure countdown seconds per contract tier:</span>
+        </div>
+        <div class="timer-inputs-row">
+          <div class="timer-input-group">
+            <label>MARKER (SEC):</label>
+            <input type="number" id="input-time-easy" min="20" max="600" value="130" />
+          </div>
+          <div class="timer-input-group">
+            <label>CONTRACT (SEC):</label>
+            <input type="number" id="input-time-medium" min="15" max="600" value="90" />
+          </div>
+          <div class="timer-input-group">
+            <label>BLOOD OATH (SEC):</label>
+            <input type="number" id="input-time-hard" min="10" max="600" value="60" />
+          </div>
+          <button id="btn-save-custom-timers" class="hud-btn assist-btn">💾 SAVE TIMES</button>
+          <button id="btn-reset-default-timers" class="hud-btn reset-btn">DEFAULT</button>
+        </div>
+      </div>
+
+      <button id="btn-close-shop" class="btn-secondary">LEAVE ARMORY</button>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

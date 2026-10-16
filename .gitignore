@@ -1,0 +1,8 @@
+node_modules/
+dist/
+DISMANTLE_GAME-main/node_modules/
+DISMANTLE_GAME-main/dist/
+.DS_Store
+*.log
+.vscode/
+.idea/

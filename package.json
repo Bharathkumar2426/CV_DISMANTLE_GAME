@@ -1,0 +1,11 @@
+{
+  "name": "dismantle-game-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm --prefix DISMANTLE_GAME-main install",
+    "dev": "npm --prefix DISMANTLE_GAME-main run dev",
+    "build": "npm --prefix DISMANTLE_GAME-main run build",
+    "preview": "npm --prefix DISMANTLE_GAME-main run preview"
+  }
+}
